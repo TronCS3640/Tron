@@ -14,23 +14,29 @@ BOARDWIDTH = 128
 BOARDHEIGHT = 72
 
 RED = (255, 0, 0)
-LIGHTRED = (128, 0, 0)
+LIGHTRED = (255, 125, 125)
 BLUE = (0, 0, 255)
-LIGHTBLUE = (0, 0, 128)
+LIGHTBLUE = (125, 125, 255)
+BLACK = (0, 0, 0)
 
+# Use single buffer
+# TODO Use double-buffer but copy previous frame to image and render to new frame?
+config = pyglet.gl.Config(double_buffer=False)
 
 class TronWindow(pyglet.window.Window):
     def __init__(self):
-        super(TronWindow, self).__init__(width=1280, height=720,
-                                         resizable=False, fullscreen=False)
+        super(TronWindow, self).__init__(width=BOARDWIDTH*CELLSIZE, height=BOARDHEIGHT*CELLSIZE,
+                                         resizable=False, fullscreen=False,
+                                         config=config)
         self.running = True
 
-
-        self.player1 = player.Player(int(BOARDWIDTH/4), int(BOARDHEIGHT/4))
+        self.player1 = player.Player(0, 0)
 
         self.movement = "up"
 
+        #pyglet.clock.schedule_interval(self.update, .5)
         pyglet.clock.schedule_interval(self.update, .03)
+
         #pyglet.clock.set_fps_limit(60)
         #self.map = Map()
 
@@ -73,7 +79,6 @@ class TronWindow(pyglet.window.Window):
     def on_draw(self):
         # Save time by drawing black quad over removed trail cells
         # This way all trail cells do not need to be drawn every step
-        self.clear()
 
         # Example player
         vertex_list = pyglet.graphics.vertex_list(4, ('v2i', self.create_quad_vertex_list(
@@ -82,7 +87,20 @@ class TronWindow(pyglet.window.Window):
                                                      ('c3B', self.create_quad_color_list(RED)))
         vertex_list.draw(pyglet.gl.GL_QUADS)
 
-        self.label.draw()
+        # Example trail
+        if len(self.player1.trail) > 0:
+            if len(self.player1.trail) > 250:
+                del_x, del_y = self.player1.trail.pop(0)
+                trail_list = pyglet.graphics.vertex_list(4, ('v2i', self.create_quad_vertex_list(del_x, del_y)),
+                                                                ('c3B', self.create_quad_color_list(BLACK)))
+                trail_list.draw(pyglet.gl.GL_QUADS)
+            new_x = self.player1.trail[-1][0]
+            new_y = self.player1.trail[-1][1]
+            trail_list = pyglet.graphics.vertex_list(4, ('v2i', self.create_quad_vertex_list(new_x, new_y)),
+                                                            ('c3B', self.create_quad_color_list(LIGHTRED)))
+            trail_list.draw(pyglet.gl.GL_QUADS)
+
+        #self.label.draw()
 
 if __name__ == "__main__":
 
