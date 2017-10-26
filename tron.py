@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # Board is 128x72 cells
 # Cells are 10px*10px
 # Window size is 1280x720
@@ -23,15 +25,14 @@ PURPLE = (255, 0, 255)
 LIGHTPURPLE = (255, 125, 255)
 BLACK = (0, 0, 0)
 
-# Use single buffer
-# TODO Use double-buffer but copy previous frame to image and render to new frame?
-config = pyglet.gl.Config(double_buffer=False)
-
 class TronWindow(pyglet.window.Window):
     def __init__(self):
         super(TronWindow, self).__init__(width=BOARDWIDTH*CELLSIZE, height=BOARDHEIGHT*CELLSIZE,
-                                         resizable=False, fullscreen=False,
-                                         config=config)
+                                         resizable=False, fullscreen=False)
+
+	# stores image from previous branch
+        self.prev_frame = None
+
         self.running = True
 
         self.players = [player.Player(int(BOARDWIDTH/4),   int(BOARDHEIGHT/4)),
@@ -140,6 +141,10 @@ class TronWindow(pyglet.window.Window):
         # Save time by drawing black quad over removed trail cells
         # This way all trail cells do not need to be drawn every step
 
+        # draw previous frame buffer to screen
+        if self.prev_frame != None:
+            self.prev_frame.blit(0,0)
+
         for pnum in range(len(self.players)):
 
             if pnum==0:
@@ -174,6 +179,9 @@ class TronWindow(pyglet.window.Window):
                 trail_list = pyglet.graphics.vertex_list(4, ('v2i', self.create_quad_vertex_list(new_x, new_y)),
                                                                 ('c3B', self.create_quad_color_list(color2)))
                 trail_list.draw(pyglet.gl.GL_QUADS)
+
+        # saves current framebuffer image
+        self.prev_frame = pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
 
         if self.check_players_collide():
             exit()
