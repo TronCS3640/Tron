@@ -98,7 +98,17 @@ class TronWindow(pyglet.window.Window):
 #        elif self.movement2 == "down":
 #            self.players[3].move_ip(0, -1)
 
-    def check_players_collide(self):
+    def check_players_collide_wall(self):
+
+        for pnum in range(len(self.players)):
+            curpos = tuple(self.players[pnum].pos)
+            if curpos[0] < 0 or curpos[0] >= BOARDWIDTH or\
+               curpos[1] < 0 or curpos[1] >= BOARDHEIGHT:
+                print("Collides")
+                return True
+
+
+    def check_players_collide_players(self):
 
         for pnum in range(len(self.players)):
             curpos = tuple(self.players[pnum].pos)
@@ -183,7 +193,7 @@ class TronWindow(pyglet.window.Window):
         # saves current framebuffer image
         self.prev_frame = pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
 
-        if self.check_players_collide():
+        if self.check_players_collide_players() or self.check_players_collide_wall():
             exit()
 
 if __name__ == "__main__":
