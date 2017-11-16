@@ -28,8 +28,7 @@ class GroupProtocol(LineReceiver):
 
         print(self.factory.playerCount)
         if self.factory.playerCount == 4:
-            self.sendLine("d".encode("ascii"))
-            #self.loseConnection()
+            self.transport.abortConnection()
         else:
             for c in range(1,5):
                 if self.factory.clients[c] == None:
