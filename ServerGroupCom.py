@@ -28,7 +28,8 @@ class GroupProtocol(LineReceiver):
     def connectionMade(self):
 
         # Reject connections if enough players or game is running
-        if self.factory.playerCount == 4 or self.factory.gameStarted:
+        if self.factory.playerCount == 4:
+        #if self.factory.playerCount == 4 or self.factory.gameStarted:
             self.transport.abortConnection()
 
         else:
@@ -43,6 +44,7 @@ class GroupProtocol(LineReceiver):
 
             # Begin countdown to game start
             if not self.factory.startScheduled:
+                #if self.factory.playerCount == 2:
                 if self.factory.playerCount == 1:
                     self.factory.startScheduled = True
                     print("Game will start in 10 seconds...")
@@ -69,13 +71,14 @@ class GroupProtocol(LineReceiver):
                 for c in range(1,5):
                     if self.factory.clients[c] == None:
                         #self.factory.movesList[c-1] = "u"
-                        self.factory.movesList[c-1] = random.choice(["u", "d", "l", "r"])                             
+                        self.factory.movesList[c-1] = random.choice(["u", "d", "l", "r"])
 
             moves = ''.join(self.factory.movesList).encode()
+            #print("sending:\t" + moves.decode())
             for c in range(1,5):
                 if self.factory.clients[c] != None:
                     self.factory.clients[c].sendLine(moves)
-            
+
             # Reset move variables
             self.factory.movesMade = 0
             self.factory.movesList = [0, 0, 0, 0]
@@ -86,6 +89,8 @@ class GroupProtocol(LineReceiver):
         for c in range(1,5):
             if self.factory.clients[c] != None:
                 self.factory.clients[c].sendLine("s".encode())
+        # Remove when done testing
+        self.factory.startScheduled = False
 
 class GroupFactory(Factory):
     def __init__(self):

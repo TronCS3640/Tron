@@ -52,8 +52,10 @@ class TronWindow(pyglet.window.Window):
                         player.Player(int(BOARDWIDTH/4*3), int(BOARDHEIGHT/4*3)),
                         player.Player(int(BOARDWIDTH/4),   int(BOARDHEIGHT/4)),
                         player.Player(int(BOARDWIDTH/4*3), int(BOARDHEIGHT/4))]
-
-        #pyglet.clock.schedule_interval(self.update, .035)
+        # Players that have collided with something
+        self.deadPlayers = set()
+        # Players that have been been erased from the board
+        self.removedPlayers = set()
         pyglet.clock.schedule_interval(self.update, .025)
 
         if self.pnum==0+1:
@@ -82,10 +84,14 @@ class TronWindow(pyglet.window.Window):
             exit()
 
         # Send move to server
+        if (self.pnum-1) in self.deadPlayers:
+            self.movement = "k"
         self.s.send("{0}{1}".format(self.movement, str(self.pnum)).encode())
 
         movesList = self.s.recv(self.BUFFER_SIZE).decode()
         for p in range(0,4):
+            if movesList[p] == "k":
+                pass
             if movesList[p] == "u":
                 self.players[p].move_ip(0, 1)
             elif movesList[p] == "l":
@@ -100,10 +106,11 @@ class TronWindow(pyglet.window.Window):
         deadPlayers = set()
 
         for pnum in range(len(self.players)):
-            curpos = tuple(self.players[pnum].pos)
-            if curpos[0] < 0 or curpos[0] >= BOARDWIDTH or\
-               curpos[1] < 0 or curpos[1] >= BOARDHEIGHT:
-                    deadPlayers.add(pnum)
+            if pnum not in self.deadPlayers:
+                curpos = tuple(self.players[pnum].pos)
+                if curpos[0] < 0 or curpos[0] >= BOARDWIDTH or\
+                curpos[1] < 0 or curpos[1] >= BOARDHEIGHT:
+                        deadPlayers.add(pnum)
 
         return deadPlayers
 
@@ -112,11 +119,13 @@ class TronWindow(pyglet.window.Window):
         deadPlayers = set()
 
         for pnum in range(len(self.players)):
-            curpos = tuple(self.players[pnum].pos)
-            for pnum2 in range(len(self.players)):
-                if curpos in self.players[pnum2].trail:
-                    deadPlayers.add(pnum)
-                    break
+            if pnum not in self.deadPlayers:
+                curpos = tuple(self.players[pnum].pos)
+                for pnum2 in range(len(self.players)):
+                    if pnum2 not in self.deadPlayers:
+                        if curpos in self.players[pnum2].trail:
+                            deadPlayers.add(pnum)
+                            break
 
         return deadPlayers
 
@@ -128,6 +137,7 @@ class TronWindow(pyglet.window.Window):
 
     def create_quad_color_list(self, color):
         return color*4
+
 
     def on_key_press(self, symbol, modifiers):
         if symbol == key.W:
@@ -153,45 +163,69 @@ class TronWindow(pyglet.window.Window):
 
         for pnum in range(len(self.players)):
 
-            if pnum==0:
-                color1=RED
-                color2=LIGHTRED
-            elif pnum==1:
-                color1=BLUE
-                color2=LIGHTBLUE
-            elif pnum==2:
-                color1=GREEN
-                color2=LIGHTGREEN
-            elif pnum==3:
-                color1=PURPLE
-                color2=LIGHTPURPLE
+            if pnum not in self.removedPlayers:
+                if pnum==0:
+                    color1=RED
+                    color2=LIGHTRED
+                elif pnum==1:
+                    color1=BLUE
+                    color2=LIGHTBLUE
+                elif pnum==2:
+                    color1=GREEN
+                    color2=LIGHTGREEN
+                elif pnum==3:
+                    color1=PURPLE
+                    color2=LIGHTPURPLE
 
-            # Draw player
-            vertex_list = pyglet.graphics.vertex_list(4, ('v2i', self.create_quad_vertex_list(
-                                                            self.players[pnum].pos[0],
-                                                            self.players[pnum].pos[1])),
-                                                        ('c3B', self.create_quad_color_list(color1)))
-            vertex_list.draw(pyglet.gl.GL_QUADS)
+                if pnum in self.deadPlayers:
+                    # Remove player
+                    vertex_list = pyglet.graphics.vertex_list(4, ('v2i', self.create_quad_vertex_list(
+                                                                    self.players[pnum].pos[0],
+                                                                    self.players[pnum].pos[1])),
+                                                                ('c3B', self.create_quad_color_list(BLACK)))
+                    vertex_list.draw(pyglet.gl.GL_QUADS)
 
-            # Draw trail
-            if len(self.players[pnum].trail) > 0:
-                if len(self.players[pnum].trail) > 250:
-                    del_x, del_y = self.players[pnum].trail.pop(0)
-                    trail_list = pyglet.graphics.vertex_list(4, ('v2i', self.create_quad_vertex_list(del_x, del_y)),
-                                                                    ('c3B', self.create_quad_color_list(BLACK)))
-                    trail_list.draw(pyglet.gl.GL_QUADS)
-                new_x = self.players[pnum].trail[-1][0]
-                new_y = self.players[pnum].trail[-1][1]
-                trail_list = pyglet.graphics.vertex_list(4, ('v2i', self.create_quad_vertex_list(new_x, new_y)),
-                                                                ('c3B', self.create_quad_color_list(color2)))
-                trail_list.draw(pyglet.gl.GL_QUADS)
+                    # Remove trail
+                    for del_x,del_y in self.players[pnum].trail:
+                        trail_list = pyglet.graphics.vertex_list(4, ('v2i', self.create_quad_vertex_list(del_x, del_y)),
+                                                                        ('c3B', self.create_quad_color_list(BLACK)))
+                        trail_list.draw(pyglet.gl.GL_QUADS)
+                    self.removedPlayers.add(pnum)
+                else:
+                    # Draw player
+                    vertex_list = pyglet.graphics.vertex_list(4, ('v2i', self.create_quad_vertex_list(
+                                                                    self.players[pnum].pos[0],
+                                                                    self.players[pnum].pos[1])),
+                                                                ('c3B', self.create_quad_color_list(color1)))
+                    vertex_list.draw(pyglet.gl.GL_QUADS)
+
+                    # Draw trail
+                    if len(self.players[pnum].trail) > 0:
+                        if len(self.players[pnum].trail) > 250:
+                            del_x, del_y = self.players[pnum].trail.pop(0)
+                            trail_list = pyglet.graphics.vertex_list(4, ('v2i', self.create_quad_vertex_list(del_x, del_y)),
+                                                                            ('c3B', self.create_quad_color_list(BLACK)))
+                            trail_list.draw(pyglet.gl.GL_QUADS)
+                        new_x = self.players[pnum].trail[-1][0]
+                        new_y = self.players[pnum].trail[-1][1]
+                        trail_list = pyglet.graphics.vertex_list(4, ('v2i', self.create_quad_vertex_list(new_x, new_y)),
+                                                                        ('c3B', self.create_quad_color_list(color2)))
+                        trail_list.draw(pyglet.gl.GL_QUADS)
+
+
+        self.deadPlayers = self.deadPlayers.union(self.check_players_collide_players())
+        self.deadPlayers = self.deadPlayers.union(self.check_players_collide_wall())
+
+        if len(self.deadPlayers) == 3:
+            for pnum in range(len(self.players)):
+                if pnum not in self.deadPlayers:
+                    pyglet.text.Label('Player #{0} wins!!!'.format(str(pnum+1)), x=self.width/2, y=self.height/2).draw()
+
 
         # saves current framebuffer image
         self.prev_frame = pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
 
-        deadPlayers = self.check_players_collide_players()
-        deadPlayers = deadPlayers.union(self.check_players_collide_wall())
-        # TODO Do something with dead players
+
 
 if __name__ == "__main__":
 
