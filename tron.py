@@ -8,6 +8,7 @@
 
 import pyglet
 from pyglet.window import key
+import socket
 
 import player
 
@@ -30,6 +31,16 @@ class TronWindow(pyglet.window.Window):
         super(TronWindow, self).__init__(width=BOARDWIDTH*CELLSIZE, height=BOARDHEIGHT*CELLSIZE,
                                          resizable=False, fullscreen=False)
 
+	# Set up connection to server
+        TCP_IP = '127.0.0.1'
+        TCP_PORT = 1025
+        BUFFER_SIZE = 1024
+        
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s.connect((TCP_IP, TCP_PORT))
+
+        self.pnum = int(self.s.recv(BUFFER_SIZE).decode()[1])
+
 	# stores image from previous branch
         self.prev_frame = None
 
@@ -40,12 +51,12 @@ class TronWindow(pyglet.window.Window):
 #                        player.Player(int(BOARDWIDTH/4),   int(BOARDHEIGHT/4*3)),
 #                        player.Player(int(BOARDWIDTH/4*3), int(BOARDHEIGHT/4*3))]
 
-        self.movement1 = "up"
-        self.movement2 = "up"
+        self.movement1 = "u"
+        self.movement2 = "u"
 
-        pyglet.clock.schedule_interval(self.update, .03)
+        pyglet.clock.schedule_interval(self.update, .035)
 
-        #pyglet.clock.set_fps_limit(60)
+        #pyglet.clock.set_fps_limit(30)
         #self.map = Map()
 
         self.label = pyglet.text.Label('Hello, world!', x=self.width/2, y=self.height/2)
@@ -56,47 +67,43 @@ class TronWindow(pyglet.window.Window):
 
         # Player 1
         # WASD
-        if self.movement1 == "up":
+        if self.movement1 == "u":
+            #self.players[self.pnum].move_ip(0, 1)
             self.players[0].move_ip(0, 1)
-        elif self.movement1 == "left":
+            self.s.send("u{}".format(str(self.pnum)).encode())
+        elif self.movement1 == "l":
+            #self.players[self.pnum].move_ip(-1, 0)
             self.players[0].move_ip(-1, 0)
-        elif self.movement1 == "right":
+            self.s.send("l{}".format(str(self.pnum)).encode())
+        elif self.movement1 == "r":
+            #self.players[self.pnum].move_ip(1, 1)
             self.players[0].move_ip(1, 0)
-        elif self.movement1 == "down":
+            self.s.send("r{}".format(str(self.pnum)).encode())
+        elif self.movement1 == "d":
+            #self.players[self.pnum].move_ip(0, -1)
             self.players[0].move_ip(0, -1)
+            self.s.send("d{}".format(str(self.pnum)).encode())
 
         # Player 2
         # Arrow keys
-        if self.movement2 == "up":
+        if self.movement2 == "u":
             self.players[1].move_ip(0, 1)
-        elif self.movement2 == "left":
+        elif self.movement2 == "l":
             self.players[1].move_ip(-1, 0)
-        elif self.movement2 == "right":
+        elif self.movement2 == "r":
             self.players[1].move_ip(1, 0)
-        elif self.movement2 == "down":
+        elif self.movement2 == "d":
             self.players[1].move_ip(0, -1)
 
-#        # Player 3
-#        # WASD
-#        if self.movement1 == "up":
-#            self.players[2].move_ip(0, 1)
-#        elif self.movement1 == "left":
-#            self.players[2].move_ip(-1, 0)
-#        elif self.movement1 == "right":
-#            self.players[2].move_ip(1, 0)
-#        elif self.movement1 == "down":
-#            self.players[2].move_ip(0, -1)
-
-#        # Player 4
-#        # Arrow keys
-#        if self.movement2 == "up":
-#            self.players[3].move_ip(0, 1)
-#        elif self.movement2 == "left":
-#            self.players[3].move_ip(-1, 0)
-#        elif self.movement2 == "right":
-#            self.players[3].move_ip(1, 0)
-#        elif self.movement2 == "down":
-#            self.players[3].move_ip(0, -1)
+#        # Other players 
+#        if self.movement2 == "u":
+#            self.players[1].move_ip(0, 1)
+#        elif self.movement2 == "l":
+#            self.players[1].move_ip(-1, 0)
+#        elif self.movement2 == "r":
+#            self.players[1].move_ip(1, 0)
+#        elif self.movement2 == "d":
+#            self.players[1].move_ip(0, -1)
 
     def check_players_collide_wall(self):
 
@@ -128,22 +135,22 @@ class TronWindow(pyglet.window.Window):
 
     def on_key_press(self, symbol, modifiers):
         if symbol == key.W:
-            self.movement1 = "up"
+            self.movement1 = "u"
         elif symbol == key.A:
-            self.movement1 = "left"
+            self.movement1 = "l"
         elif symbol == key.D:
-            self.movement1 = "right"
+            self.movement1 = "r"
         elif symbol == key.S:
-            self.movement1 = "down"
+            self.movement1 = "d"
 
         elif symbol == key.UP:
-            self.movement2 = "up"
+            self.movement2 = "u"
         elif symbol == key.LEFT:
-            self.movement2 = "left"
+            self.movement2 = "l"
         elif symbol == key.RIGHT:
-            self.movement2 = "right"
+            self.movement2 = "r"
         elif symbol == key.DOWN:
-            self.movement2 = "down"
+            self.movement2 = "d"
         elif symbol == key.ESCAPE:
             self.running = False
 
