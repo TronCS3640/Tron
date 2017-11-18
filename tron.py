@@ -9,6 +9,7 @@
 import pyglet
 from pyglet.window import key
 import socket
+import sys
 
 import player
 
@@ -32,10 +33,11 @@ class TronWindow(pyglet.window.Window):
                                          resizable=False, fullscreen=False)
 
 	# Set up connection to server
-        TCP_IP = '127.0.0.1'
+        TCP_IP = sys.argv[1]
+        #TCP_IP = '127.0.0.1'
         TCP_PORT = 1025
         self.BUFFER_SIZE = 1024
-        
+
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s.connect((TCP_IP, TCP_PORT))
 
