@@ -34,76 +34,59 @@ class TronWindow(pyglet.window.Window):
 	# Set up connection to server
         TCP_IP = '127.0.0.1'
         TCP_PORT = 1025
-        BUFFER_SIZE = 1024
+        self.BUFFER_SIZE = 1024
         
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s.connect((TCP_IP, TCP_PORT))
 
-        self.pnum = int(self.s.recv(BUFFER_SIZE).decode()[1])
+        self.pnum = int(self.s.recv(self.BUFFER_SIZE).decode()[1])
+        #print(self.s.recv(self.BUFFER_SIZE).decode().strip())
+        # Wait for server to notify to start
+        if not self.s.recv(self.BUFFER_SIZE).decode().strip() == "s":
+            print("Something went wrong...")
+            exit()
+        else:
+            print("Starting game...")
 
 	# stores image from previous branch
         self.prev_frame = None
 
+        self.firstUpdate = True
         self.running = True
+        self.movement = "u"
 
         self.players = [player.Player(int(BOARDWIDTH/4),   int(BOARDHEIGHT/4)),
-                        player.Player(int(BOARDWIDTH/4*3), int(BOARDHEIGHT/4))]
-#                        player.Player(int(BOARDWIDTH/4),   int(BOARDHEIGHT/4*3)),
-#                        player.Player(int(BOARDWIDTH/4*3), int(BOARDHEIGHT/4*3))]
-
-        self.movement1 = "u"
-        self.movement2 = "u"
+                        player.Player(int(BOARDWIDTH/4*3), int(BOARDHEIGHT/4)),
+                        player.Player(int(BOARDWIDTH/4),   int(BOARDHEIGHT/4*3)),
+                        player.Player(int(BOARDWIDTH/4*3), int(BOARDHEIGHT/4*3))]
 
         pyglet.clock.schedule_interval(self.update, .035)
 
-        #pyglet.clock.set_fps_limit(30)
-        #self.map = Map()
-
-        self.label = pyglet.text.Label('Hello, world!', x=self.width/2, y=self.height/2)
+        #self.label = pyglet.text.Label('Hello, world!', x=self.width/2, y=self.height/2)
 
     def update(self, dt):
         if not self.running:
             exit()
 
-        # Player 1
-        # WASD
-        if self.movement1 == "u":
-            #self.players[self.pnum].move_ip(0, 1)
-            self.players[0].move_ip(0, 1)
-            self.s.send("u{}".format(str(self.pnum)).encode())
-        elif self.movement1 == "l":
-            #self.players[self.pnum].move_ip(-1, 0)
-            self.players[0].move_ip(-1, 0)
-            self.s.send("l{}".format(str(self.pnum)).encode())
-        elif self.movement1 == "r":
-            #self.players[self.pnum].move_ip(1, 1)
-            self.players[0].move_ip(1, 0)
-            self.s.send("r{}".format(str(self.pnum)).encode())
-        elif self.movement1 == "d":
-            #self.players[self.pnum].move_ip(0, -1)
-            self.players[0].move_ip(0, -1)
-            self.s.send("d{}".format(str(self.pnum)).encode())
+        self.s.send("{0}{1}".format(self.movement, str(self.pnum)).encode())
 
-        # Player 2
-        # Arrow keys
-        if self.movement2 == "u":
-            self.players[1].move_ip(0, 1)
-        elif self.movement2 == "l":
-            self.players[1].move_ip(-1, 0)
-        elif self.movement2 == "r":
-            self.players[1].move_ip(1, 0)
-        elif self.movement2 == "d":
-            self.players[1].move_ip(0, -1)
+        # Update player positions
+        #if not self.firstUpdate:
+        #    movesList = self.s.recv(self.BUFFER_SIZE).decode()
+        #else:
+        #    movesList = "uuuu"
+        #    self.firstUpdate = False
 
-#        # Other players 
-#        if self.movement2 == "u":
-#            self.players[1].move_ip(0, 1)
-#        elif self.movement2 == "l":
-#            self.players[1].move_ip(-1, 0)
-#        elif self.movement2 == "r":
-#            self.players[1].move_ip(1, 0)
-#        elif self.movement2 == "d":
-#            self.players[1].move_ip(0, -1)
+        movesList = self.s.recv(self.BUFFER_SIZE).decode()
+        for p in range(0,4):
+            if movesList[p] == "u":
+                self.players[p].move_ip(0, 1)
+            elif movesList[p] == "l":
+                self.players[p].move_ip(-1, 0)
+            elif movesList[p] == "r":
+                self.players[p].move_ip(1, 0)
+            elif movesList[p] == "d":
+                self.players[p].move_ip(0, -1)
 
     def check_players_collide_wall(self):
 
@@ -135,22 +118,17 @@ class TronWindow(pyglet.window.Window):
 
     def on_key_press(self, symbol, modifiers):
         if symbol == key.W:
-            self.movement1 = "u"
+            self.movement = "u"
+            #self.s.send("u{}".format(str(self.pnum)).encode())
         elif symbol == key.A:
-            self.movement1 = "l"
+            self.movement = "l"
+            #self.s.send("l{}".format(str(self.pnum)).encode())
         elif symbol == key.D:
-            self.movement1 = "r"
+            self.movement = "r"
+            #self.s.send("r{}".format(str(self.pnum)).encode())
         elif symbol == key.S:
-            self.movement1 = "d"
-
-        elif symbol == key.UP:
-            self.movement2 = "u"
-        elif symbol == key.LEFT:
-            self.movement2 = "l"
-        elif symbol == key.RIGHT:
-            self.movement2 = "r"
-        elif symbol == key.DOWN:
-            self.movement2 = "d"
+            self.movement = "d"
+            #self.s.send("d{}".format(str(self.pnum)).encode())
         elif symbol == key.ESCAPE:
             self.running = False
 
@@ -200,8 +178,8 @@ class TronWindow(pyglet.window.Window):
         # saves current framebuffer image
         self.prev_frame = pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
 
-        if self.check_players_collide_players() or self.check_players_collide_wall():
-            exit()
+        #if self.check_players_collide_players() or self.check_players_collide_wall():
+        #    exit()
 
 if __name__ == "__main__":
 
