@@ -47,8 +47,9 @@ class GroupProtocol(LineReceiver):
                 print("Removing player #{}".format(str(c)))
                 break
 
-    def lineReceived(self, line):
+    def dataReceived(self, line):
 
+        print("Received: " + line.decode())
         for c in range(1,5):
             if self.factory.clients[c] != None:
                 source = u"<{}> ".format(self.transport.getPeer()).encode("ascii")
