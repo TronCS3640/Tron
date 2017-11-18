@@ -32,7 +32,7 @@ class TronWindow(pyglet.window.Window):
         super(TronWindow, self).__init__(width=BOARDWIDTH*CELLSIZE, height=BOARDHEIGHT*CELLSIZE,
                                          resizable=False, fullscreen=False)
 
-	# Set up connection to server
+	    # Set up connection to server
         TCP_IP = sys.argv[1]
         TCP_PORT = 1025
         self.BUFFER_SIZE = 1024
@@ -41,23 +41,17 @@ class TronWindow(pyglet.window.Window):
         self.s.connect((TCP_IP, TCP_PORT))
 
         self.pnum = int(self.s.recv(self.BUFFER_SIZE).decode()[1])
-        # Wait for server to notify to start
-        if not self.s.recv(self.BUFFER_SIZE).decode().strip() == "s":
-            print("Something went wrong...")
-            exit()
-        else:
-            print("Starting game...")
 
-	# stores image from previous branch
+	    # stores image from previous branch
         self.prev_frame = None
 
         self.running = True
-        self.movement = "u"
 
-        self.players = [player.Player(int(BOARDWIDTH/4),   int(BOARDHEIGHT/4)),
-                        player.Player(int(BOARDWIDTH/4*3), int(BOARDHEIGHT/4)),
-                        player.Player(int(BOARDWIDTH/4),   int(BOARDHEIGHT/4*3)),
-                        player.Player(int(BOARDWIDTH/4*3), int(BOARDHEIGHT/4*3))]
+        self.movement = "u"
+        self.players = [player.Player(int(BOARDWIDTH/4),   int(BOARDHEIGHT/4*3)),
+                        player.Player(int(BOARDWIDTH/4*3), int(BOARDHEIGHT/4*3)),
+                        player.Player(int(BOARDWIDTH/4),   int(BOARDHEIGHT/4)),
+                        player.Player(int(BOARDWIDTH/4*3), int(BOARDHEIGHT/4))]
 
         #pyglet.clock.schedule_interval(self.update, .035)
         pyglet.clock.schedule_interval(self.update, .025)
@@ -73,18 +67,22 @@ class TronWindow(pyglet.window.Window):
 
         self.label = pyglet.text.Label('Your color is: ' + pcolor, x=self.width/2, y=self.height-20)
 
+        # For windows: makes window not appear to be not responding
+        self.flip()
+
+        # Wait for server to notify to start
+        if not self.s.recv(self.BUFFER_SIZE).decode().strip() == "s":
+            print("Something went wrong...")
+            exit()
+        else:
+            print("Starting game...")
+
     def update(self, dt):
         if not self.running:
             exit()
 
+        # Send move to server
         self.s.send("{0}{1}".format(self.movement, str(self.pnum)).encode())
-
-        # Update player positions
-        #if not self.firstUpdate:
-        #    movesList = self.s.recv(self.BUFFER_SIZE).decode()
-        #else:
-        #    movesList = "uuuu"
-        #    self.firstUpdate = False
 
         movesList = self.s.recv(self.BUFFER_SIZE).decode()
         for p in range(0,4):
@@ -99,22 +97,28 @@ class TronWindow(pyglet.window.Window):
 
     def check_players_collide_wall(self):
 
+        deadPlayers = set()
+
         for pnum in range(len(self.players)):
             curpos = tuple(self.players[pnum].pos)
             if curpos[0] < 0 or curpos[0] >= BOARDWIDTH or\
                curpos[1] < 0 or curpos[1] >= BOARDHEIGHT:
-                print("Collides")
-                return True
+                    deadPlayers.add(pnum)
 
+        return deadPlayers
 
     def check_players_collide_players(self):
+
+        deadPlayers = set()
 
         for pnum in range(len(self.players)):
             curpos = tuple(self.players[pnum].pos)
             for pnum2 in range(len(self.players)):
                 if curpos in self.players[pnum2].trail:
-                    print("Collides")
-                    return True
+                    deadPlayers.add(pnum)
+                    break
+
+        return deadPlayers
 
     def create_quad_vertex_list(self, x, y):
         return (x*CELLSIZE,            y*CELLSIZE,
@@ -144,6 +148,8 @@ class TronWindow(pyglet.window.Window):
         # draw previous frame buffer to screen
         if self.prev_frame != None:
             self.prev_frame.blit(0,0)
+
+        self.label.draw()
 
         for pnum in range(len(self.players)):
 
@@ -180,13 +186,12 @@ class TronWindow(pyglet.window.Window):
                                                                 ('c3B', self.create_quad_color_list(color2)))
                 trail_list.draw(pyglet.gl.GL_QUADS)
 
-        self.label.draw()
-
         # saves current framebuffer image
         self.prev_frame = pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
 
-        #if self.check_players_collide_players() or self.check_players_collide_wall():
-        #    exit()
+        deadPlayers = self.check_players_collide_players()
+        deadPlayers = deadPlayers.union(self.check_players_collide_wall())
+        # TODO Do something with dead players
 
 if __name__ == "__main__":
 
