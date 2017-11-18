@@ -34,7 +34,6 @@ class TronWindow(pyglet.window.Window):
 
 	# Set up connection to server
         TCP_IP = sys.argv[1]
-        #TCP_IP = '127.0.0.1'
         TCP_PORT = 1025
         self.BUFFER_SIZE = 1024
 
@@ -42,7 +41,6 @@ class TronWindow(pyglet.window.Window):
         self.s.connect((TCP_IP, TCP_PORT))
 
         self.pnum = int(self.s.recv(self.BUFFER_SIZE).decode()[1])
-        #print(self.s.recv(self.BUFFER_SIZE).decode().strip())
         # Wait for server to notify to start
         if not self.s.recv(self.BUFFER_SIZE).decode().strip() == "s":
             print("Something went wrong...")
@@ -53,7 +51,6 @@ class TronWindow(pyglet.window.Window):
 	# stores image from previous branch
         self.prev_frame = None
 
-        self.firstUpdate = True
         self.running = True
         self.movement = "u"
 
@@ -62,9 +59,19 @@ class TronWindow(pyglet.window.Window):
                         player.Player(int(BOARDWIDTH/4),   int(BOARDHEIGHT/4*3)),
                         player.Player(int(BOARDWIDTH/4*3), int(BOARDHEIGHT/4*3))]
 
-        pyglet.clock.schedule_interval(self.update, .035)
+        #pyglet.clock.schedule_interval(self.update, .035)
+        pyglet.clock.schedule_interval(self.update, .025)
 
-        #self.label = pyglet.text.Label('Hello, world!', x=self.width/2, y=self.height/2)
+        if self.pnum==0+1:
+            pcolor = "RED"
+        elif self.pnum==1+1:
+            pcolor = "BLUE"
+        elif self.pnum==2+1:
+            pcolor = "GREEN"
+        elif self.pnum==3+1:
+            pcolor = "PURPLE"
+
+        self.label = pyglet.text.Label('Your color is: ' + pcolor, x=self.width/2, y=self.height-20)
 
     def update(self, dt):
         if not self.running:
@@ -121,16 +128,12 @@ class TronWindow(pyglet.window.Window):
     def on_key_press(self, symbol, modifiers):
         if symbol == key.W:
             self.movement = "u"
-            #self.s.send("u{}".format(str(self.pnum)).encode())
         elif symbol == key.A:
             self.movement = "l"
-            #self.s.send("l{}".format(str(self.pnum)).encode())
         elif symbol == key.D:
             self.movement = "r"
-            #self.s.send("r{}".format(str(self.pnum)).encode())
         elif symbol == key.S:
             self.movement = "d"
-            #self.s.send("d{}".format(str(self.pnum)).encode())
         elif symbol == key.ESCAPE:
             self.running = False
 
@@ -176,6 +179,8 @@ class TronWindow(pyglet.window.Window):
                 trail_list = pyglet.graphics.vertex_list(4, ('v2i', self.create_quad_vertex_list(new_x, new_y)),
                                                                 ('c3B', self.create_quad_color_list(color2)))
                 trail_list.draw(pyglet.gl.GL_QUADS)
+
+        self.label.draw()
 
         # saves current framebuffer image
         self.prev_frame = pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
