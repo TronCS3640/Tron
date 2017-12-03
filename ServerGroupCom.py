@@ -56,8 +56,9 @@ class GroupProtocol(LineReceiver):
         for c in range(1,5):
             if self.factory.clients[c] == self:
                 self.factory.clients[c] = None
-                self.factory.cpuPlayers.add(c)
                 self.factory.playerCount -= 1
+                self.factory.cpuPlayers.add(c)
+                self.processMove("u", c)
                 print("Removing player #" + str(c))
                 break
 
@@ -65,43 +66,47 @@ class GroupProtocol(LineReceiver):
 
         if not self.factory.isWinner:
             move = line.decode()
-            # If player dies, server sends "k" to other players from then on
-            if move[0] == "k" and int(move[1]) not in self.factory.deadPlayers:
-                self.factory.deadPlayers.add(int(move[1]))
-                if int(move[1]) not in self.factory.cpuPlayers:
-                    self.factory.cpuPlayers.add(int(move[1]))
-                    self.factory.playerCount -= 1
-            elif move[0] == "w":
-                print("Player has won")
-                self.factory.movesList = ["k", "k", "k", "k"]
-                self.factory.movesList[int(move[1])-1] = "w"
-                self.factory.cpuPlayers.add(int(move[1]))
-                self.factory.playerCount = 0
-                self.factory.isWinner = True
-                reactor.callLater(3, self.scheduleReset)
-            else:
-                self.factory.movesList[int(move[1])-1] = move[0]
-                self.factory.movesMade += 1
+            self.processMove(move[0], int(move[1]))
 
-            # Server makes moves for dead and cpu players
-            if self.factory.movesMade >= self.factory.playerCount:
-                if self.factory.playerCount > 0 and self.factory.playerCount < 4:
-                    for c in self.factory.cpuPlayers:
-                        if c in self.factory.deadPlayers:
-                            self.factory.movesList[c-1] = "k"
-                        else:
-                            self.factory.movesList[c-1] = random.choice(["u", "d", "l", "r"])
+    def processMove(self, move, pnum):
 
-                print(self.factory.movesList)
-                moves = ''.join(self.factory.movesList).encode()
-                #print("sending:\t" + moves.decode())
-                for c in range(1,5):
-                    if self.factory.clients[c] != None:
-                        self.factory.clients[c].sendLine(moves)
+        # If player dies, server sends "k" to other players from then on
+        if move == "k" and pnum not in self.factory.deadPlayers:
+            self.factory.deadPlayers.add(pnum)
+            if pnum not in self.factory.cpuPlayers:
+                self.factory.cpuPlayers.add(pnum)
+                self.factory.playerCount -= 1
+        elif move == "w":
+            print("Player has won")
+            self.factory.movesList = ["k", "k", "k", "k"]
+            self.factory.movesList[pnum-1] = "w"
+            self.factory.cpuPlayers.add(pnum)
+            self.factory.playerCount = 0
+            self.factory.isWinner = True
+            reactor.callLater(3, self.scheduleReset)
+        else:
+            self.factory.movesList[pnum-1] = move
+            self.factory.movesMade += 1
 
-                # Reset move variables
-                self.factory.movesMade = 0
-                self.factory.movesList = [0, 0, 0, 0]
+        # Server makes moves for dead and cpu players
+        if self.factory.movesMade >= self.factory.playerCount:
+            if self.factory.playerCount > 0 and self.factory.playerCount < 4:
+                for c in self.factory.cpuPlayers:
+                    if c in self.factory.deadPlayers:
+                        self.factory.movesList[c-1] = "k"
+                    else:
+                        self.factory.movesList[c-1] = random.choice(["u", "d", "l", "r"])
+
+            print(self.factory.movesList)
+            moves = ''.join(self.factory.movesList).encode()
+            #print("sending:\t" + moves.decode())
+            for c in range(1,5):
+                if self.factory.clients[c] != None:
+                    self.factory.clients[c].sendLine(moves)
+
+            # Reset move variables
+            self.factory.movesMade = 0
+            self.factory.movesList = [0, 0, 0, 0]
 
     def scheduleStart(self):
         print("Game is starting...")
