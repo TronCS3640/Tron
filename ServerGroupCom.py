@@ -69,12 +69,25 @@ class GroupProtocol(LineReceiver):
             if int(move[1]) not in self.factory.cpuPlayers:
                 self.factory.cpuPlayers.add(int(move[1]))
                 self.factory.playerCount -= 1
+        elif move[0] == "w":
+            print("Player has won")
+            self.factory.movesList = ["k", "k", "k", "k"]
+            self.factory.movesList[int(move[1])-1] = "w"
+            self.factory.cpuPlayers.add(int(move[1]))
+            self.factory.playerCount = 0
+            reactor.callLater(3, self.scheduleReset)
         else:
             self.factory.movesList[int(move[1])-1] = move[0]
             self.factory.movesMade += 1
 
-        if self.factory.movesMade == self.factory.playerCount:
-            if self.factory.playerCount < 4:
+        if self.factory.movesMade >= self.factory.playerCount:
+            #if len(self.factory.deadPlayers) == 3:
+            #    for c in range(1,5):
+            #        if c in self.factory.deadPlayers:
+            #            self.factory.movesList[c-1] = "k"
+            #        else:
+            #            self.factory.movesList[c-1] = "w"
+            if self.factory.playerCount > 0 and self.factory.playerCount < 4:
                 for c in self.factory.cpuPlayers:
                     if c in self.factory.deadPlayers:
                         self.factory.movesList[c-1] = "k"
@@ -105,6 +118,17 @@ class GroupProtocol(LineReceiver):
                 self.factory.clients[c].sendLine("s".encode())
         # Remove when done testing
         self.factory.startScheduled = False
+
+    def scheduleReset(self):
+        print("Game is reseting...")
+        # Disconnect current connections so new players can play
+        self.factory.gameStarted = False
+        self.factory.deadPlayers = set()
+        self.factory.cpuPlayers = set()
+        for c in range(1,5):
+            if self.factory.clients[c] != None:
+                self.factory.clients[c].transport.abortConnection()
+                self.factory.clients[c] = None
 
 class GroupFactory(Factory):
     def __init__(self):

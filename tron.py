@@ -10,6 +10,7 @@ import pyglet
 from pyglet.window import key
 import socket
 import sys
+import time
 
 import player
 
@@ -36,17 +37,17 @@ class TronWindow(pyglet.window.Window):
         TCP_IP = sys.argv[1]
         TCP_PORT = 1025
         self.BUFFER_SIZE = 1024
-
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s.connect((TCP_IP, TCP_PORT))
 
         self.pnum = int(self.s.recv(self.BUFFER_SIZE).decode()[1])
-
-	    # stores image from previous branch
-        self.prev_frame = None
+        self.wnum = -1
 
         self.running = True
         self.sending = True
+
+	    # stores image from previous branch
+        self.prev_frame = None
 
         self.movement = "u"
         self.players = [player.Player(int(BOARDWIDTH/4),   int(BOARDHEIGHT/4*3)),
@@ -82,17 +83,22 @@ class TronWindow(pyglet.window.Window):
 
     def update(self, dt):
         if not self.running:
+            if self.wnum != -1:
+                time.sleep(3)
             exit()
 
-        # Send move to server
+        # Send move to server if still alive
         if self.sending:
             self.s.send("{0}{1}".format(self.movement, str(self.pnum)).encode())
 
         movesList = self.s.recv(self.BUFFER_SIZE).decode()
+        print(movesList)
         for p in range(0,4):
             if movesList[p] == "k":
                 pass
-            if movesList[p] == "u":
+            elif movesList[p] == "w":
+                self.wnum = p+1
+            elif movesList[p] == "u":
                 self.players[p].move_ip(0, 1)
             elif movesList[p] == "l":
                 self.players[p].move_ip(-1, 0)
@@ -159,6 +165,7 @@ class TronWindow(pyglet.window.Window):
         if self.prev_frame != None:
             self.prev_frame.blit(0,0)
 
+        # Top label
         self.label.draw()
 
         for pnum in range(len(self.players)):
@@ -176,6 +183,7 @@ class TronWindow(pyglet.window.Window):
                 elif pnum==3:
                     color1=PURPLE
                     color2=LIGHTPURPLE
+
 
                 if pnum in self.deadPlayers:
                     # Remove player
@@ -212,25 +220,27 @@ class TronWindow(pyglet.window.Window):
                                                                         ('c3B', self.create_quad_color_list(color2)))
                         trail_list.draw(pyglet.gl.GL_QUADS)
 
+            self.deadPlayers = self.deadPlayers.union(self.check_players_collide_players())
+            self.deadPlayers = self.deadPlayers.union(self.check_players_collide_wall())
 
-        self.deadPlayers = self.deadPlayers.union(self.check_players_collide_players())
-        self.deadPlayers = self.deadPlayers.union(self.check_players_collide_wall())
+            # Stop sending and let server take control when player dies
+            if (self.pnum-1) in self.deadPlayers and self.sending:
+                self.s.send("{0}{1}".format("k", str(self.pnum)).encode())
+                self.sending = False
 
-        # Stop sending and let server take control when player dies
-        if (self.pnum-1) in self.deadPlayers and self.sending:
-            self.s.send("{0}{1}".format("k", str(self.pnum)).encode())
-            self.sending = False
+            # Stop sending and inform server when player wins
+            if len(self.deadPlayers) == 3 and (self.pnum-1) not in self.deadPlayers and self.sending:
+                self.s.send("{0}{1}".format("w", str(self.pnum)).encode())
+                self.sending = False
 
-        if len(self.deadPlayers) == 3:
-            for pnum in range(len(self.players)):
-                if pnum not in self.deadPlayers:
-                    pyglet.text.Label('Player #{0} wins!!!'.format(str(pnum+1)), x=self.width/2, y=self.height/2).draw()
-
+        # Display the winner and end the game
+        if self.wnum != -1:
+            pyglet.text.Label('Player #{0} wins!!!'.format(str(self.wnum)), x=self.width/2, y=self.height/2, anchor_x='center', anchor_y='center').draw()
+            pyglet.text.Label('Game will close in 3 seconds'.format(str(self.wnum)), x=self.width/2, y=self.height/2-20, anchor_x='center', anchor_y='center').draw()
+            self.running = False
 
         # saves current framebuffer image
         self.prev_frame = pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
-
-
 
 if __name__ == "__main__":
 
