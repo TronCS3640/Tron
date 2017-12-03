@@ -231,6 +231,7 @@ class TronWindow(pyglet.window.Window):
             # Stop sending and inform server when player wins
             if len(self.deadPlayers) == 3 and (self.pnum-1) not in self.deadPlayers and self.sending:
                 self.s.send("{0}{1}".format("w", str(self.pnum)).encode())
+                print("Player sending win")
                 self.sending = False
 
         # Display the winner and end the game
