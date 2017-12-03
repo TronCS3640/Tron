@@ -63,14 +63,22 @@ class GroupProtocol(LineReceiver):
     def dataReceived(self, line):
 
         move = line.decode()
-        self.factory.movesList[int(move[1])-1] = move[0]
-        self.factory.movesMade += 1
+        # If player dies, server sends "k" to other players from then on
+        if move[0] == "k" and int(move[1]) not in self.factory.deadPlayers:
+            self.factory.deadPlayers.add(int(move[1]))
+            if int(move[1]) not in self.factory.cpuPlayers:
+                self.factory.cpuPlayers.add(int(move[1]))
+                self.factory.playerCount -= 1
+        else:
+            self.factory.movesList[int(move[1])-1] = move[0]
+            self.factory.movesMade += 1
 
         if self.factory.movesMade == self.factory.playerCount:
             if self.factory.playerCount < 4:
-                for c in range(1,5):
-                    if self.factory.clients[c] == None:
-                        #self.factory.movesList[c-1] = "u"
+                for c in self.factory.cpuPlayers:
+                    if c in self.factory.deadPlayers:
+                        self.factory.movesList[c-1] = "k"
+                    else:
                         self.factory.movesList[c-1] = random.choice(["u", "d", "l", "r"])
 
             moves = ''.join(self.factory.movesList).encode()
@@ -86,8 +94,14 @@ class GroupProtocol(LineReceiver):
     def scheduleStart(self):
         print("Game is starting...")
         self.factory.gameStarted = True
+        self.factory.deadPlayers = set()
+        self.factory.cpuPlayers = set()
         for c in range(1,5):
-            if self.factory.clients[c] != None:
+            if self.factory.clients[c] == None:
+                self.factory.cpuPlayers.add(c)
+        print(self.factory.cpuPlayers)
+        for c in range(1,5):
+            if c not in self.factory.cpuPlayers:
                 self.factory.clients[c].sendLine("s".encode())
         # Remove when done testing
         self.factory.startScheduled = False
@@ -99,6 +113,8 @@ class GroupFactory(Factory):
                         2: None,
                         3: None,
                         4: None}
+        self.cpuPlayers = set()
+        self.deadPlayers = set()
         self.playerCount = 0
         self.startScheduled = False
         self.gameStarted = False

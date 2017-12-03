@@ -46,6 +46,7 @@ class TronWindow(pyglet.window.Window):
         self.prev_frame = None
 
         self.running = True
+        self.sending = True
 
         self.movement = "u"
         self.players = [player.Player(int(BOARDWIDTH/4),   int(BOARDHEIGHT/4*3)),
@@ -84,9 +85,8 @@ class TronWindow(pyglet.window.Window):
             exit()
 
         # Send move to server
-        if (self.pnum-1) in self.deadPlayers:
-            self.movement = "k"
-        self.s.send("{0}{1}".format(self.movement, str(self.pnum)).encode())
+        if self.sending:
+            self.s.send("{0}{1}".format(self.movement, str(self.pnum)).encode())
 
         movesList = self.s.recv(self.BUFFER_SIZE).decode()
         for p in range(0,4):
@@ -215,6 +215,11 @@ class TronWindow(pyglet.window.Window):
 
         self.deadPlayers = self.deadPlayers.union(self.check_players_collide_players())
         self.deadPlayers = self.deadPlayers.union(self.check_players_collide_wall())
+
+        # Stop sending and let server take control when player dies
+        if (self.pnum-1) in self.deadPlayers and self.sending:
+            self.s.send("{0}{1}".format("k", str(self.pnum)).encode())
+            self.sending = False
 
         if len(self.deadPlayers) == 3:
             for pnum in range(len(self.players)):
