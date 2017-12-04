@@ -15,6 +15,7 @@ from twisted.internet.protocol import Protocol, Factory
 from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.protocols.basic import LineReceiver
 from sys import stdout
+import threading
 import random
 
 PORT = 1025
@@ -44,7 +45,6 @@ class GroupProtocol(LineReceiver):
 
             # Begin countdown to game start
             if not self.factory.startScheduled:
-                #if self.factory.playerCount == 2:
                 if self.factory.playerCount == 1:
                     self.factory.startScheduled = True
                     print("Game will start in 10 seconds...")
@@ -63,6 +63,10 @@ class GroupProtocol(LineReceiver):
                 break
 
     def dataReceived(self, line):
+
+        if not self.factory.collectionStarted:
+            self.factory.collectionStarted = True
+            threading.Timer(.25, self.forceMoves).start()
 
         if not self.factory.isWinner:
             move = line.decode()
@@ -83,7 +87,7 @@ class GroupProtocol(LineReceiver):
             self.factory.cpuPlayers.add(pnum)
             self.factory.playerCount = 0
             self.factory.isWinner = True
-            reactor.callLater(3, self.scheduleReset)
+            reactor.callLater(1, self.scheduleReset)
         else:
             self.factory.movesList[pnum-1] = move
             self.factory.movesMade += 1
@@ -107,6 +111,16 @@ class GroupProtocol(LineReceiver):
             # Reset move variables
             self.factory.movesMade = 0
             self.factory.movesList = [0, 0, 0, 0]
+            self.factory.collectionStarted = False
+
+    def forceMoves(self):
+        if self.factory.collectionStarted:
+            for p in range(0,4):
+                if self.factory.movesList[p] == 0:
+                    self.factory.mutex.acquire()
+                    self.processMove("u", p-1)
+                    self.factory.mutex.release()
+            self.factory.collectionStarted = False
 
     def scheduleStart(self):
         print("Game is starting...")
@@ -146,8 +160,10 @@ class GroupFactory(Factory):
         self.deadPlayers = set()
         self.playerCount = 0
         self.startScheduled = False
+        self.collectionStarted = False
         self.gameStarted = False
         self.isWinner = False
+        self.mutex = threading.Lock()
         self.movesList = [0, 0, 0, 0]
         self.movesMade = 0
 

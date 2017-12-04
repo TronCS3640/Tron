@@ -58,7 +58,7 @@ class TronWindow(pyglet.window.Window):
         self.deadPlayers = set()
         # Players that have been been erased from the board
         self.removedPlayers = set()
-        pyglet.clock.schedule_interval(self.update, .025)
+        pyglet.clock.schedule_interval(self.update, .045)
 
         if self.pnum==0+1:
             pcolor = "RED"
