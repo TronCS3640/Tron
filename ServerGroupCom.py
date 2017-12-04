@@ -29,45 +29,48 @@ class GroupProtocol(LineReceiver):
     def connectionMade(self):
 
         # Reject connections if enough players or game is running
-        if self.factory.playerCount == 4:
-        #if self.factory.playerCount == 4 or self.factory.gameStarted:
+        if self.factory.playerCount == 4 or self.factory.gameStarted:
             self.transport.abortConnection()
-
+        # Add client to dictionary
         else:
             for c in range(1,5):
                 if self.factory.clients[c] == None:
+                    print("Adding player #" + str(c))
                     self.factory.clients[c] = self
                     line = "c" + str(c)
                     self.factory.clients[c].sendLine(line.encode())
                     self.factory.playerCount += 1
-                    print("Adding player #" + str(c))
                     break
 
             # Begin countdown to game start
             if not self.factory.startScheduled:
                 if self.factory.playerCount == 1:
                     self.factory.startScheduled = True
-                    print("Game will start in 10 seconds...")
+                    print("Game will start in 3 seconds...")
                     reactor.callLater(3, self.scheduleStart)
+                    #print("Game will start in 10 seconds...")
                     #reactor.callLater(10, self.scheduleStart)
 
     def connectionLost(self, reason):
 
+        # Remove player and pass player control to server
         for c in range(1,5):
             if self.factory.clients[c] == self:
+                print("Removing player #" + str(c))
                 self.factory.clients[c] = None
                 self.factory.playerCount -= 1
                 self.factory.cpuPlayers.add(c)
                 self.processMove("u", c)
-                print("Removing player #" + str(c))
                 break
 
     def dataReceived(self, line):
 
+        # Schedule timer to force moves if response take too long
         if not self.factory.collectionStarted:
             self.factory.collectionStarted = True
-            threading.Timer(.25, self.forceMoves).start()
+            threading.Timer(.2, self.forceMoves).start()
 
+        # Process moves if there is not already a winner
         if not self.factory.isWinner:
             move = line.decode()
             self.processMove(move[0], int(move[1]))
@@ -80,6 +83,7 @@ class GroupProtocol(LineReceiver):
             if pnum not in self.factory.cpuPlayers:
                 self.factory.cpuPlayers.add(pnum)
                 self.factory.playerCount -= 1
+        # If player wins notify others with "w" and schedule game reset
         elif move == "w":
             print("Player has won")
             self.factory.movesList = ["k", "k", "k", "k"]
@@ -88,20 +92,21 @@ class GroupProtocol(LineReceiver):
             self.factory.playerCount = 0
             self.factory.isWinner = True
             reactor.callLater(1, self.scheduleReset)
+        # If no special cases just store the move normally
         else:
             self.factory.movesList[pnum-1] = move
             self.factory.movesMade += 1
 
-        # Server makes moves for dead and cpu players
+        # Server sends formatted move list to clients 
         if self.factory.movesMade >= self.factory.playerCount:
             if self.factory.playerCount > 0 and self.factory.playerCount < 4:
+                # Server makes moves for dead and cpu players
                 for c in self.factory.cpuPlayers:
                     if c in self.factory.deadPlayers:
                         self.factory.movesList[c-1] = "k"
                     else:
                         self.factory.movesList[c-1] = random.choice(["u", "d", "l", "r"])
 
-            print(self.factory.movesList)
             moves = ''.join(self.factory.movesList).encode()
             #print("sending:\t" + moves.decode())
             for c in range(1,5):
@@ -114,6 +119,7 @@ class GroupProtocol(LineReceiver):
             self.factory.collectionStarted = False
 
     def forceMoves(self):
+        # Server makes move for players that are taking too long to respond
         if self.factory.collectionStarted:
             for p in range(0,4):
                 if self.factory.movesList[p] == 0:
@@ -123,6 +129,7 @@ class GroupProtocol(LineReceiver):
             self.factory.collectionStarted = False
 
     def scheduleStart(self):
+        # Set up game and send "s" to let players know to start
         print("Game is starting...")
         self.factory.gameStarted = True
         self.factory.deadPlayers = set()
@@ -130,7 +137,7 @@ class GroupProtocol(LineReceiver):
         for c in range(1,5):
             if self.factory.clients[c] == None:
                 self.factory.cpuPlayers.add(c)
-        print(self.factory.cpuPlayers)
+        #print(self.factory.cpuPlayers)
         for c in range(1,5):
             if c not in self.factory.cpuPlayers:
                 self.factory.clients[c].sendLine("s".encode())
@@ -138,20 +145,24 @@ class GroupProtocol(LineReceiver):
         self.factory.startScheduled = False
 
     def scheduleReset(self):
+        # Reset game after round has completed
         print("Game is reseting...")
-        # Disconnect current connections so new players can play
+	    # Reset game variables
         self.factory.gameStarted = False
         self.factory.isWinner = False
         self.factory.deadPlayers = set()
         self.factory.cpuPlayers = set()
+        # Disconnect current connections so new players can play
         for c in range(1,5):
             if self.factory.clients[c] != None:
                 self.factory.clients[c].transport.abortConnection()
                 self.factory.clients[c] = None
 
 class GroupFactory(Factory):
+
     def __init__(self):
 
+        print("Server Port: " + str(PORT))
         self.clients = {1: None,
                         2: None,
                         3: None,
@@ -170,6 +181,7 @@ class GroupFactory(Factory):
     def buildProtocol(self, addr):
         return GroupProtocol(self)
 
+# Set up server
 factory = GroupFactory()
 endpoint = TCP4ServerEndpoint(reactor, PORT)
 endpoint.listen(factory)

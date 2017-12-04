@@ -14,6 +14,7 @@ import time
 
 import player
 
+# Constant variables
 CELLSIZE = 10
 BOARDWIDTH = 128
 BOARDHEIGHT = 72
@@ -40,9 +41,11 @@ class TronWindow(pyglet.window.Window):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s.connect((TCP_IP, TCP_PORT))
 
+        # Keep track of your player number and winner's number
         self.pnum = int(self.s.recv(self.BUFFER_SIZE).decode()[1])
         self.wnum = -1
 
+        # Keep track of game running and if you're sending
         self.running = True
         self.sending = True
 
@@ -50,6 +53,8 @@ class TronWindow(pyglet.window.Window):
         self.prev_frame = None
 
         self.movement = "u"
+
+        # List of players
         self.players = [player.Player(int(BOARDWIDTH/4),   int(BOARDHEIGHT/4*3)),
                         player.Player(int(BOARDWIDTH/4*3), int(BOARDHEIGHT/4*3)),
                         player.Player(int(BOARDWIDTH/4),   int(BOARDHEIGHT/4)),
@@ -58,8 +63,11 @@ class TronWindow(pyglet.window.Window):
         self.deadPlayers = set()
         # Players that have been been erased from the board
         self.removedPlayers = set()
+
+        # Game speed
         pyglet.clock.schedule_interval(self.update, .045)
 
+        # Set players color
         if self.pnum==0+1:
             pcolor = "RED"
         elif self.pnum==1+1:
@@ -69,7 +77,7 @@ class TronWindow(pyglet.window.Window):
         elif self.pnum==3+1:
             pcolor = "PURPLE"
 
-        self.label = pyglet.text.Label('Your color is: ' + pcolor, x=self.width/2, y=self.height-20)
+        self.label = pyglet.text.Label('Your color is: ' + pcolor, x=self.width/2, y=self.height-20, anchor_x='center', anchor_y='center')
 
         # For windows: makes window not appear to be not responding
         self.flip()
@@ -82,6 +90,7 @@ class TronWindow(pyglet.window.Window):
             print("Starting game...")
 
     def update(self, dt):
+        # Close game if needed
         if not self.running:
             if self.wnum != -1:
                 time.sleep(3)
@@ -91,6 +100,7 @@ class TronWindow(pyglet.window.Window):
         if self.sending:
             self.s.send("{0}{1}".format(self.movement, str(self.pnum)).encode())
 
+        # Retrieve and process move list
         movesList = self.s.recv(self.BUFFER_SIZE).decode()
         print(movesList)
         for p in range(0,4):
@@ -108,6 +118,7 @@ class TronWindow(pyglet.window.Window):
                 self.players[p].move_ip(0, -1)
 
     def check_players_collide_wall(self):
+        # Check player collisions with walls
 
         deadPlayers = set()
 
@@ -121,6 +132,7 @@ class TronWindow(pyglet.window.Window):
         return deadPlayers
 
     def check_players_collide_players(self):
+        # Check player collisions with other players
 
         deadPlayers = set()
 
@@ -136,16 +148,22 @@ class TronWindow(pyglet.window.Window):
         return deadPlayers
 
     def create_quad_vertex_list(self, x, y):
+        # Creates vertex list for use in draw
+
         return (x*CELLSIZE,            y*CELLSIZE,
                 x*CELLSIZE + CELLSIZE, y*CELLSIZE,
                 x*CELLSIZE + CELLSIZE, y*CELLSIZE + CELLSIZE,
                 x*CELLSIZE,            y*CELLSIZE + CELLSIZE)
 
     def create_quad_color_list(self, color):
+        # Creates color list for use in draw
+
         return color*4
 
 
     def on_key_press(self, symbol, modifiers):
+        # Process key press events
+
         if symbol == key.W:
             self.movement = "u"
         elif symbol == key.A:
@@ -170,6 +188,7 @@ class TronWindow(pyglet.window.Window):
 
         for pnum in range(len(self.players)):
 
+            # Draw players that have not been removed
             if pnum not in self.removedPlayers:
                 if pnum==0:
                     color1=RED
@@ -184,7 +203,7 @@ class TronWindow(pyglet.window.Window):
                     color1=PURPLE
                     color2=LIGHTPURPLE
 
-
+                # Erase players that have just died
                 if pnum in self.deadPlayers:
                     # Remove player
                     vertex_list = pyglet.graphics.vertex_list(4, ('v2i', self.create_quad_vertex_list(
@@ -199,6 +218,7 @@ class TronWindow(pyglet.window.Window):
                                                                         ('c3B', self.create_quad_color_list(BLACK)))
                         trail_list.draw(pyglet.gl.GL_QUADS)
                     self.removedPlayers.add(pnum)
+                # Or just draw the player normally
                 else:
                     # Draw player
                     vertex_list = pyglet.graphics.vertex_list(4, ('v2i', self.create_quad_vertex_list(
