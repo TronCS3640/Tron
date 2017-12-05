@@ -14,7 +14,7 @@ from twisted.internet import reactor
 from twisted.internet.protocol import Protocol, Factory
 from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.protocols.basic import LineReceiver
-from sys import stdout
+from sys import stdout, argv
 import threading
 import random
 
@@ -46,8 +46,8 @@ class GroupProtocol(LineReceiver):
             if not self.factory.startScheduled:
                 if self.factory.playerCount == 1:
                     self.factory.startScheduled = True
-                    print("Game will start in 3 seconds...")
-                    reactor.callLater(3, self.scheduleStart)
+                    print("Game will start in {} seconds...".format(str(self.factory.countdown)))
+                    reactor.callLater(self.factory.countdown, self.scheduleStart)
                     #print("Game will start in 10 seconds...")
                     #reactor.callLater(10, self.scheduleStart)
 
@@ -177,6 +177,11 @@ class GroupFactory(Factory):
         self.mutex = threading.Lock()
         self.movesList = [0, 0, 0, 0]
         self.movesMade = 0
+
+        try:
+                self.countdown = int(argv[1])
+        except:
+                self.countdown = 10
 
     def buildProtocol(self, addr):
         return GroupProtocol(self)
