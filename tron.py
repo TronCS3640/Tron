@@ -102,7 +102,7 @@ class TronWindow(pyglet.window.Window):
 
         # Retrieve and process move list
         movesList = self.s.recv(self.BUFFER_SIZE).decode()
-        print(movesList)
+        #print(movesList)
         for p in range(0,4):
             if movesList[p] == "k":
                 pass
@@ -164,16 +164,28 @@ class TronWindow(pyglet.window.Window):
     def on_key_press(self, symbol, modifiers):
         # Process key press events
 
-        if symbol == key.W:
+        if symbol == key.UP:
             self.movement = "u"
-        elif symbol == key.A:
+        elif symbol == key.LEFT:
             self.movement = "l"
-        elif symbol == key.D:
+        elif symbol == key.RIGHT:
             self.movement = "r"
-        elif symbol == key.S:
+        elif symbol == key.DOWN:
             self.movement = "d"
         elif symbol == key.ESCAPE:
             self.running = False
+
+#        if symbol == key.W:
+#            self.movement = "u"
+#        elif symbol == key.A:
+#            self.movement = "l"
+#        elif symbol == key.D:
+#            self.movement = "r"
+#        elif symbol == key.S:
+#            self.movement = "d"
+#        elif symbol == key.ESCAPE:
+#            self.running = False
+
 
     def on_draw(self):
         # Save time by drawing black quad over removed trail cells
