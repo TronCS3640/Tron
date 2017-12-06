@@ -48,8 +48,6 @@ class GroupProtocol(LineReceiver):
                     self.factory.startScheduled = True
                     print("Game will start in {} seconds...".format(str(self.factory.countdown)))
                     reactor.callLater(self.factory.countdown, self.scheduleStart)
-                    #print("Game will start in 10 seconds...")
-                    #reactor.callLater(10, self.scheduleStart)
 
     def connectionLost(self, reason):
 
@@ -68,7 +66,7 @@ class GroupProtocol(LineReceiver):
         # Schedule timer to force moves if response take too long
         if not self.factory.collectionStarted:
             self.factory.collectionStarted = True
-            threading.Timer(.2, self.forceMoves).start()
+            #threading.Timer(.2, self.forceMoves).start()
 
         # Process moves if there is not already a winner
         if not self.factory.isWinner:
@@ -97,7 +95,7 @@ class GroupProtocol(LineReceiver):
             self.factory.movesList[pnum-1] = move
             self.factory.movesMade += 1
 
-        # Server sends formatted move list to clients 
+        # Server sends formatted move list to clients
         if self.factory.movesMade >= self.factory.playerCount:
             if self.factory.playerCount > 0 and self.factory.playerCount < 4:
                 # Server makes moves for dead and cpu players
@@ -123,9 +121,10 @@ class GroupProtocol(LineReceiver):
         if self.factory.collectionStarted:
             for p in range(0,4):
                 if self.factory.movesList[p] == 0:
-                    self.factory.mutex.acquire()
-                    self.processMove("u", p-1)
-                    self.factory.mutex.release()
+                    if p+1 not in self.factory.cpuPlayers:
+                        self.factory.mutex.acquire()
+                        self.processMove("u", p-1)
+                        self.factory.mutex.release()
             self.factory.collectionStarted = False
 
     def scheduleStart(self):
