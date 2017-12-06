@@ -75,46 +75,49 @@ class GroupProtocol(LineReceiver):
 
     def processMove(self, move, pnum):
 
-        # If player dies, server sends "k" to other players from then on
-        if move == "k" and pnum not in self.factory.deadPlayers:
-            self.factory.deadPlayers.add(pnum)
-            if pnum not in self.factory.cpuPlayers:
+        try:
+            # If player dies, server sends "k" to other players from then on
+            if move == "k" and pnum not in self.factory.deadPlayers:
+                self.factory.deadPlayers.add(pnum)
+                if pnum not in self.factory.cpuPlayers:
+                    self.factory.cpuPlayers.add(pnum)
+                    self.factory.playerCount -= 1
+            # If player wins notify others with "w" and schedule game reset
+            elif move == "w":
+                print("Player has won")
+                self.factory.movesList = ["k", "k", "k", "k"]
+                self.factory.movesList[pnum-1] = "w"
                 self.factory.cpuPlayers.add(pnum)
-                self.factory.playerCount -= 1
-        # If player wins notify others with "w" and schedule game reset
-        elif move == "w":
-            print("Player has won")
-            self.factory.movesList = ["k", "k", "k", "k"]
-            self.factory.movesList[pnum-1] = "w"
-            self.factory.cpuPlayers.add(pnum)
-            self.factory.playerCount = 0
-            self.factory.isWinner = True
-            reactor.callLater(1, self.scheduleReset)
-        # If no special cases just store the move normally
-        else:
-            self.factory.movesList[pnum-1] = move
-            self.factory.movesMade += 1
+                self.factory.playerCount = 0
+                self.factory.isWinner = True
+                reactor.callLater(1, self.scheduleReset)
+            # If no special cases just store the move normally
+            else:
+                self.factory.movesList[pnum-1] = move
+                self.factory.movesMade += 1
 
-        # Server sends formatted move list to clients
-        if self.factory.movesMade >= self.factory.playerCount:
-            if self.factory.playerCount > 0 and self.factory.playerCount < 4:
-                # Server makes moves for dead and cpu players
-                for c in self.factory.cpuPlayers:
-                    if c in self.factory.deadPlayers:
-                        self.factory.movesList[c-1] = "k"
-                    else:
-                        self.factory.movesList[c-1] = random.choice(["u", "d", "l", "r"])
+            # Server sends formatted move list to clients
+            if self.factory.movesMade >= self.factory.playerCount:
+                if self.factory.playerCount > 0 and self.factory.playerCount < 4:
+                    # Server makes moves for dead and cpu players
+                    for c in self.factory.cpuPlayers:
+                        if c in self.factory.deadPlayers:
+                            self.factory.movesList[c-1] = "k"
+                        else:
+                            self.factory.movesList[c-1] = random.choice(["u", "d", "l", "r"])
 
-            moves = ''.join(self.factory.movesList).encode()
-            #print("sending:\t" + moves.decode())
-            for c in range(1,5):
-                if self.factory.clients[c] != None:
-                    self.factory.clients[c].sendLine(moves)
+                moves = ''.join(self.factory.movesList).encode()
+                #print("sending:\t" + moves.decode())
+                for c in range(1,5):
+                    if self.factory.clients[c] != None:
+                        self.factory.clients[c].sendLine(moves)
 
-            # Reset move variables
-            self.factory.movesMade = 0
-            self.factory.movesList = [0, 0, 0, 0]
-            self.factory.collectionStarted = False
+                # Reset move variables
+                self.factory.movesMade = 0
+                self.factory.movesList = [0, 0, 0, 0]
+                self.factory.collectionStarted = False
+        except:
+            self.scheduleReset()
 
     def forceMoves(self):
         # Server makes move for players that are taking too long to respond
